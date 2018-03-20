@@ -27,11 +27,11 @@ In file use mode, a CSV file must be specified in the format: `<DisplayName>,<Tw
 
 #### Point Mode
 
-`-p` specifies to start from a specific Tweet ID of the given user. __The CSV file will need to be modified__ to reflect this flag. If specified, CSV file format must be" `<DisplayName>,<TwitterHandle>,<TweetID>` where the Tweet ID is an unsigned integer. A Tweet's ID can be quickly found in the URL of the Tweet.
+`-p` specifies to start from a specific Tweet ID of the given user. __The CSV file will need to be modified__ to reflect this flag. If specified, CSV file format must be: `<DisplayName>,<TwitterHandle>,<TweetID>` where the Tweet ID is an unsigned integer. A Tweet's ID can be quickly found in the URL of the Tweet.
 
 #### Number of Files
 
-`-n <int>` specifies the number of newest Tweets to grab per Twitter handle. The __maximum may or may not be 3200__ according to some versions of the Twitter API. __There is a hard 900 requests per 15 minutes when using the API. Each request can return 200 Tweets at maximum therefore when using a large n, the program will pause to wait for more requests to be made.__
+`-n <int>` specifies the number of newest Tweets to grab per Twitter handle. The __maximum may or may not be 3200__ according to some versions of the Twitter API. __There is a hard 900 requests per 15 minutes when using the API. Each request can return 200 Tweets at maximum therefore when using a large n, the program will pause to wait for more requests to be made.__ _Mileage may vary_ 
 
 
 #### Output Directory
