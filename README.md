@@ -40,6 +40,10 @@ Specify a directory to output the files to. One CSV file will be generated per s
 
 `-r` will force the user to reneter their Twitter API information. __Note*__ This information can also be modified in .tweetmine.ini. 
 
+## Dependencies
+
+* github.com/dghubble/go-twitter/twitter
+* github.com/dghubble/oauth1
 ___
 
 Tested with Go version: go1.8.3 linum/amd64.
