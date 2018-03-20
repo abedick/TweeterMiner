@@ -22,6 +22,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +37,7 @@ type Config struct {
 
 	mode          bool
 	extended      bool
+	since         bool
 	output_path   string
 	input_file    string
 	single_handle []string
@@ -54,10 +56,11 @@ var glb_config Config
 
 /* Batch Controller */
 type Batch struct {
-	count       int
-	count_mutex sync.Mutex
-	max         int
-	last_sleep  time.Time
+	count         int
+	count_mutex   sync.Mutex
+	max           int
+	last_sleep    time.Time
+	request_mutex sync.Mutex
 }
 
 var glb_batch Batch
@@ -66,6 +69,7 @@ var glb_batch Batch
 type User struct {
 	Name       string
 	ScreenName string
+	StartID    int
 }
 
 /* Stores data that has been parsed from the Tweet Interface */
@@ -169,6 +173,12 @@ func read() []User {
 			Name:       line[0],
 			ScreenName: line[1],
 		}
+
+		if glb_config.since {
+			since_id, _ := strconv.Atoi(line[2])
+			new_user.StartID = since_id
+		}
+
 		users = append(users, new_user)
 	}
 	return users
@@ -249,8 +259,12 @@ func process_tweets(user User) []CustomTweet {
 			TweetMode:  "extended",
 		}
 
-		/* Calculate the starting point if running a subsequent batch */
-		if batch_count != glb_config.n {
+		/* For use with custom starting points */
+		/* Else calculate the starting point if running a subsequent batch */
+		if glb_config.since {
+			timeline_params.MaxID = int64(user.StartID)
+			glb_config.since = false
+		} else if batch_count != glb_config.n {
 			max_id := tweets[len(tweets)-1].ID - 1
 			timeline_params.MaxID = max_id
 		}
@@ -264,6 +278,7 @@ func process_tweets(user User) []CustomTweet {
 		}
 
 		/* Grab tweets of the specified user */
+		glb_batch.request_mutex.Lock()
 		tweet, resp, err := glb_config.client.Timelines.UserTimeline(&timeline_params)
 
 		/* Error and Response Handling */
@@ -274,6 +289,8 @@ func process_tweets(user User) []CustomTweet {
 		if resp == nil {
 			fmt.Println("Bad response: ", user.Name)
 		}
+
+		glb_batch.request_mutex.Unlock()
 
 		/* Process each tweet and add it to the list of tweets */
 		for _, ptweet := range tweet {
@@ -344,12 +361,14 @@ func system_init() {
 
 	extendPtr := flag.Bool("e", false, "Run in extended mode?")
 	envvarPtr := flag.Bool("r", false, "Used to reset API and Token information.")
+	sincePtr := flag.Bool("p", false, "Return tweets only older than some ID given in the input list.")
 	numPtr := flag.Int("n", 10, "The number of most recent Tweets to mine.")
 
 	flag.Parse()
 
 	glb_config.output_path = Foutput
 	glb_config.extended = *extendPtr
+	glb_config.since = *sincePtr
 	glb_config.n = *numPtr
 
 	if file_mode != "" && single_mode == "" {
