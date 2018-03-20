@@ -30,17 +30,6 @@ import (
 	"github.com/dghubble/oauth1"
 )
 
-/* Concurrent Variables */
-var glb_batch_cnt = 0
-var glb_batch_max = 0
-var glb_sleep = false
-var glb_current_time = time.Now()
-
-var glb_batch_mutex sync.Mutex
-var glb_sleep_mutex sync.Mutex
-
-const max_count = 900
-
 /* Stores envirment runtime variables */
 type Config struct {
 	n int
@@ -63,7 +52,17 @@ type Config struct {
 
 var glb_config Config
 
-/* Stores a Twitter Users */
+/* Batch Controller */
+type Batch struct {
+	count       int
+	count_mutex sync.Mutex
+	max         int
+	last_sleep  time.Time
+}
+
+var glb_batch Batch
+
+/* Stores Twitter User information */
 type User struct {
 	Name       string
 	ScreenName string
@@ -80,7 +79,6 @@ type CustomTweet struct {
  * -- MAIN -----------------------------------------------------------------*/
 func main() {
 
-	/* Set up environment */
 	system_init()
 
 	/* Start */
@@ -112,16 +110,8 @@ func main() {
 	 * Start a new goroutine for each user
 	 */
 	for _, user := range user_list {
-
-		// glb_sleep_mutex.Lock()
-		// current_sleep := glb_sleep
-		// glb_sleep_mutex.Unlock()
-
-		// if !current_sleep {
 		glb_config.wg.Add(1)
 		go request(user)
-		// }
-
 	}
 
 	/* Wait for all threads to terminate */
@@ -129,7 +119,7 @@ func main() {
 
 	/* Report */
 	delta_time := time.Since(start_time)
-	fmt.Println("\n...Completed in", delta_time, "and", glb_batch_max, "batches")
+	fmt.Println("\n...Completed in", delta_time, "and", glb_batch.max, "batches")
 
 }
 
@@ -179,7 +169,6 @@ func read() []User {
 			Name:       line[0],
 			ScreenName: line[1],
 		}
-
 		users = append(users, new_user)
 	}
 	return users
@@ -231,16 +220,25 @@ func process_tweets(user User) []CustomTweet {
 	}
 
 	/* Increment the glb_batch_mutex */
-	glb_batch_mutex.Lock()
-	glb_batch_cnt += int(math.Ceil(float64(glb_config.n) / 200))
+	glb_batch.count_mutex.Lock()
 
-	/* Hit the max for a 15 minute window, check to see how long to rest */
-	// if(glb_batch_cnt > max_count){
-	// 	delta_time = time.Now() -
-	// }
+	new_batch_count := glb_batch.count + int(math.Ceil(float64(glb_config.n)/200))
 
-	glb_batch_max += int(math.Ceil(float64(glb_config.n) / 200))
-	glb_batch_mutex.Unlock()
+	/* Situation in which sleeping will be necessary */
+	if new_batch_count > 900 {
+		delta_time := time.Since(glb_batch.last_sleep)
+
+		fmt.Println("Hit API limit. Will now sleep for ", delta_time)
+		time.Sleep(delta_time)
+
+		glb_batch.last_sleep = time.Now()
+		glb_batch.count = int(math.Ceil(float64(glb_config.n) / 200))
+	}
+
+	glb_batch.count = new_batch_count
+	glb_batch.max += int(math.Ceil(float64(glb_config.n) / 200))
+
+	glb_batch.count_mutex.Unlock()
 
 	for batch_count > 0 {
 
@@ -406,6 +404,13 @@ func system_init() {
 	// var config = &oauth2.Config{}
 	// var token = &oauth2.Token{AccessToken: access_token}
 	// var httpClient = config.Client(oauth2.NoContext, token)
+
+	/*
+	 * Set up the concurrent varialbes in glb_batch
+	 */
+	glb_batch.max = 0
+	glb_batch.count = 0
+	glb_batch.last_sleep = time.Now()
 }
 
 func save_config(conf map[string]string) {
