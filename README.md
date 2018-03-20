@@ -25,7 +25,7 @@ In file use mode, a CSV file must be specified in the format: `<DisplayName>,<Tw
 
 `-e` specifies the program will run in extended mode. Extended mode returns Tweets that are Retweets and Replies. In nonextended mode, only stand alone Tweets will be saved. (This is good for analyzing things such as speech patterns, etc.)
 
-### Point Mode
+#### Point Mode
 
 `-p` specifies to start from a specific Tweet ID of the given user. __The CSV file will need to be modified__ to reflect this flag. If specified, CSV file format must be" `<DisplayName>,<TwitterHandle>,<TweetID>` where the Tweet ID is an unsigned integer. A Tweet's ID can be quickly found in the URL of the Tweet.
 
